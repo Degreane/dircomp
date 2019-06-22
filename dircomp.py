@@ -22,6 +22,8 @@ class qtapp(Ui_FileReplicants):
         self.setupUi(FileReplicants)
         self.InputWorkDir.setEnabled(False)
         self.FileReplicants = FileReplicants
+        self.FileList.clear()
+
         FileReplicants.show()
         self.changeWorkingDir(self.currentDir)
         self.BtnLoadDir.clicked.connect(self.changeWorkingDir)
@@ -37,7 +39,58 @@ class qtapp(Ui_FileReplicants):
                 bytesRead = fd.read(BufferSize)
             return myhash.hexdigest()
 
+    def applyXml2FileList(self):
+        """
+            Here We loop over the elements of the XML
+            basically it is
+            <root>
+                <h_###>
+                    <size>
+                      96588542
+                    </size>
+                    <File>
+                        FilePathName
+                    </File>
+                </h_###>
+            </root>
+
+        """
+        # item = QtWidgets.QTreeWidgetItem(self.FileList)
+        # item.setText(0, "faysal")
+        # item.setText(1, "hash1")
+        # item.setText(2, "size")
+        # item.setText(3, "count")
+        # file1 = QtWidgets.QTreeWidgetItem(item)
+        # file1.setText(0, "file1")
+        # file1 = QtWidgets.QTreeWidgetItem(item)
+        # file1.setText(0, "file2")
+        # help(item)
+        # help(self.FileList.addTopLevelItem)
+        for node in self.Tree:
+            # node should have [File,...]
+            Files = node.findall('File')
+            count = len(Files)
+
+            size = int(node.find('size').text)
+            fileName = os.path.basename(Files[0].text)
+            item = QtWidgets.QTreeWidgetItem(self.FileList)
+            item.setText(0, fileName)
+            item.setText(1, node.tag)
+            item.setData(2, 0, size)
+            item.setData(3, 0, count)
+            # Text(3, count)
+            if count != 1:
+                item.setBackground(0, QtGui.QColor("yellow"))
+            for theFile in Files:
+                File = QtWidgets.QTreeWidgetItem(item)
+                File.setText(0, theFile.text)
+        self.FileList.resizeColumnToContents(0)
+        self.FileList.resizeColumnToContents(1)
+        self.FileList.resizeColumnToContents(2)
+
     def analyseWorkingDir(self):
+        self.Tree = etree.Element('root')
+        self.FileList.clear()
         for root, dirs, files in os.walk(self.currentDir):
             rowMsg = "{0}<-root \n\t[{1}] <-dirs\n\t\t[{2}] \n".format(
                 root,
@@ -64,15 +117,12 @@ class qtapp(Ui_FileReplicants):
                 """
                 hashedElement = self.Tree.find("h_{0}".format(hashedFile))
                 if etree.iselement(hashedElement):
-                    # print(
-                    #     "Duplicate => {0} {1}".format(
-                    #         hashedElement.find('File').text,
-                    #         file2read
-                    #     )
-                    # )
                     pass
                 else:
                     hashedElement = etree.Element("h_{0}".format(hashedFile))
+                    ElSize = etree.Element('size')
+                    ElSize.text = str(os.path.getsize(file2read))
+                    hashedElement.append(ElSize)
                 El = etree.Element('File')
                 El.text = file2read
                 hashedElement.append(El)
@@ -84,6 +134,7 @@ class qtapp(Ui_FileReplicants):
                 encoding=str
             )
         )
+        self.applyXml2FileList()
 
     def changeWorkingDir(self, directory=None):
         # self.currentDir=
